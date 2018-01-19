@@ -1,0 +1,62 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: memcached
+  labels:
+    app: memcached
+spec:
+  serviceName: memcached
+  replicas: {{ memcached_replica_count }}
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      affinity:
+        podAntiAffinity:
+          {% if memcached_anti_affinity == "hard" -%}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  app: memcached
+          {% elif memcached_anti_affinity == "soft" -%}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 5
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: memcached
+          {% endif %}
+
+      containers:
+        - name: memcached
+          image: {{ memcached_image }}
+          imagePullPolicy: "{{ memcached_image_pull_policy }}"
+          command:
+            - memcached
+            - -m {{ memcached_max_item_memory }}
+            {% if memcached_extended_options -%}
+            - -o
+            - {{ memcached_extended_options }}
+            {% endif -%}
+            {%- if memcached_verbosity -%}
+            - -{{ memcached_verbosity }}
+            {% endif %}
+
+          resources:
+            {{ memcached_resources | to_nice_yaml(indent=2) | indent(12) }}
+          ports:
+            - name: memcache
+              containerPort: 11211
+          livenessProbe:
+            tcpSocket:
+              port: memcache
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: memcache
+            initialDelaySeconds: 5
+            timeoutSeconds: 1

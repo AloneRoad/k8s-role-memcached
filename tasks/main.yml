@@ -1,0 +1,10 @@
+---
+
+- name: Install memcached
+  command: kubectl apply -f -
+  args:
+    stdin: "{{ item }}"
+  with_items:
+    - "{{ lookup('template', 'pdb.yml') }}"
+    - "{{ lookup('template', 'statefulset.yml') }}"
+    - "{{ lookup('template', 'svc.yml') }}"
